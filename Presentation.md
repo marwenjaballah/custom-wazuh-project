@@ -8,10 +8,11 @@ This document summarizes the current state, architecture, and live capabilities 
 
 The Peaksoft IoT Security module extends the world-class Wazuh SIEM/XDR platform to provide specialized, AI-driven visibility into IoT environments. We have successfully moved from a design phase to a **Live Functional Prototype** that correlates real-world security threats with device inventory.
 
-### Key Value Propositions
-- **Unified Visibility**: Managed IoT inventory side-by-side with security alerts.
-- **Dynamic Risk Assessment**: Real-time risk scoring based on live security telemetry.
-- **Standards Compliance**: Automated mapping to international security standards (IEC 62443).
+### 💹 Enhanced Security Visualization
+- **Live Statistics**: real-time counters for Total Assets, Active Connections, and Critical Threats.
+- **Risk Distribution**: High/Medium/Low risk breakdowns mirroring the native Wazuh experience.
+- **Rich Metadata**: Identification by Manufacturer and Firmware version for every IoT endpoint.
+- **Auto-Refresh**: Dashboard automatically polls for threat updates every 10 seconds.
 
 ---
 
