@@ -1,0 +1,26 @@
+{
+  "name": "iot-security",
+  "version": "1.0.0",
+  "description": "Peaksoft IoT Security Management Plugin",
+  "main": "index.js",
+  "scripts": {
+    "build": "node ../../scripts/plugin_helpers build",
+    "plugin:zip": "node ../../scripts/plugin_helpers build",
+    "kbn": "node ../../scripts/kbn",
+    "es:snapshot": "node ../../scripts/es snapshot",
+    "clean": "node ../../scripts/plugin_helpers clean"
+  },
+  "dependencies": {
+    "axios": "^0.27.2",
+    "moment": "^2.29.4"
+  },
+  "devDependencies": {
+    "@elastic/eui": "^34.0.0",
+    "@types/node": "^16.0.0",
+    "@types/react": "^16.9.0",
+    "@types/react-dom": "^16.9.0",
+    "react": "^16.14.0",
+    "react-dom": "^16.14.0",
+    "typescript": "~4.5.2"
+  }
+}

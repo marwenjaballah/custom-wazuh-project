@@ -171,6 +171,12 @@ services:
       - ./config/wazuh_dashboard/wazuh.yml:/usr/share/opensearch-dashboards/data/wazuh/config/wazuh.yml
       - wazuh-dashboard-config:/usr/share/opensearch-dashboards/data/wazuh/config
       - wazuh-dashboard-custom:/usr/share/opensearch-dashboards/plugins/wazuh/public/assets/custom
+      - ./config/wazuh_dashboard/custom/images:/usr/share/opensearch-dashboards/src/core/server/core_app/assets/logos/custom
+      - ./config/wazuh_dashboard/custom/images/wazuh_login_bg.svg:/usr/share/opensearch-dashboards/src/core/server/core_app/assets/wazuh_login_bg.svg
+      - ./config/wazuh_dashboard/custom/themes/icon.svg:/usr/share/opensearch-dashboards/plugins/wazuh/public/assets/images/themes/dark/icon.svg
+      - ./config/wazuh_dashboard/custom/themes/logo.svg:/usr/share/opensearch-dashboards/plugins/wazuh/public/assets/images/themes/dark/logo.svg
+      - ./config/wazuh_dashboard/custom/themes/icon.svg:/usr/share/opensearch-dashboards/plugins/wazuh/public/assets/images/themes/light/icon.svg
+      - ./config/wazuh_dashboard/custom/themes/logo.svg:/usr/share/opensearch-dashboards/plugins/wazuh/public/assets/images/themes/light/logo.svg
     depends_on:
       - wazuh1.indexer
     links:

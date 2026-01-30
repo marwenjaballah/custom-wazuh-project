@@ -1,0 +1,9 @@
+{
+  "id": "iotSecurity",
+  "version": "1.0.0",
+  "opensearchDashboardsVersion": "2.16.0",
+  "server": true,
+  "ui": true,
+  "requiredPlugins": ["navigation", "data"],
+  "optionalPlugins": []
+}
