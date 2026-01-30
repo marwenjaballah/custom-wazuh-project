@@ -4,7 +4,10 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 import uuid
 
+from services.wazuh_service import WazuhService
+
 router = APIRouter()
+wazuh_service = WazuhService()
 
 # Models
 class DeviceBase(BaseModel):
@@ -71,11 +74,16 @@ async def get_devices(
     device_type: Optional[str] = None
 ):
     """
-    Get all registered IoT devices with optional filters
-    
-    - **status**: Filter by device status (online, offline, warning)
-    - **device_type**: Filter by device type
+    Get all registered IoT devices with dynamic risk scores from Wazuh
     """
+    # Update risk scores dynamically from Wazuh
+    for device in devices_db:
+        if device.ip_address:
+            # Fetch real alert data from OpenSearch
+            new_score = wazuh_service.get_device_risk_data(device.ip_address)
+            device.risk_score = new_score
+            device.last_seen = datetime.now().isoformat()
+            
     filtered_devices = devices_db
     
     if status:
