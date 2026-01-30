@@ -40,9 +40,9 @@ echo -e "${GREEN}✅ Backend built successfully.${NC}"
 
 # 4. Build Custom Peaksoft Dashboard
 echo -e "${BLUE}🎨 Building Rebranded Peaksoft Dashboard (this may take a while)...${NC}"
-cd wazuh-dashboard/build/opensearch-dashboards-docker
+cd wazuh-dashboard/docker-custom
 ./build_robust.sh
-cd ../../..
+cd ../..
 echo -e "${GREEN}✅ Dashboard built successfully.${NC}"
 
 # 5. Start the Stack

@@ -1,0 +1,135 @@
+################################################################################
+# Dockerfile for OpenSearch Dashboards with Wazuh Plugins
+# This extends the base dashboard image to include Wazuh plugins
+################################################################################
+
+ARG BASE_IMAGE=opensearchproject/opensearch-dashboards:2.16.0
+ARG WAZUH_VERSION=4.10.3
+ARG OPENSEARCH_DASHBOARDS_VERSION=2.16.0
+
+# Build stage 0: Build Wazuh plugins
+FROM node:18.19.0 AS plugin-builder
+
+ARG WAZUH_VERSION
+ARG OPENSEARCH_DASHBOARDS_VERSION
+
+# Install build dependencies
+USER root
+RUN apt-get update && apt-get install -y git zip unzip curl brotli jq && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+USER node
+WORKDIR /home/node
+
+# Clone dashboard repo first (needed for plugin build tools)
+RUN git clone --depth 1 --branch v${WAZUH_VERSION} \
+    https://github.com/wazuh/wazuh-dashboard.git \
+    /home/node/wzd
+
+WORKDIR /home/node/wzd
+# Bootstrap dashboard (needed for plugin helpers)
+RUN yarn config set network-timeout 100000 && yarn osd bootstrap --production
+
+# Clone and build Wazuh Security Dashboards Plugin
+WORKDIR /home/node/wzd/plugins
+RUN git clone --depth 1 --branch v4.10.1 \
+    https://github.com/wazuh/wazuh-security-dashboards-plugin.git
+
+WORKDIR /home/node/wzd/plugins/wazuh-security-dashboards-plugin
+RUN yarn && yarn build
+
+# Clone Wazuh Dashboard Plugins repository
+WORKDIR /home/node/wzd/plugins
+RUN git clone --depth 1 --branch v${WAZUH_VERSION} \
+    https://github.com/wazuh/wazuh-dashboard-plugins.git
+
+# Extract plugin directories
+WORKDIR /home/node/wzd/plugins
+
+# Move plugins to the root plugins directory
+RUN mv wazuh-dashboard-plugins/plugins/main wazuh && \
+    mv wazuh-dashboard-plugins/plugins/wazuh-core wazuh-core && \
+    mv wazuh-dashboard-plugins/plugins/wazuh-check-updates wazuh-check-updates
+
+# Build wazuh plugin
+WORKDIR /home/node/wzd/plugins/wazuh
+RUN yarn && yarn build
+
+# Build wazuh-core plugin
+WORKDIR /home/node/wzd/plugins/wazuh-core
+RUN yarn && yarn build
+
+# Build wazuh-check-updates plugin
+WORKDIR /home/node/wzd/plugins/wazuh-check-updates
+RUN yarn && yarn build
+
+# Copy and build local IoT Security Plugin
+COPY --chown=1000:0 iot-security-plugin /home/node/wzd/plugins/iot-security
+WORKDIR /home/node/wzd/plugins/iot-security
+RUN yarn && yarn build
+
+################################################################################
+# Build stage 1: Base dashboard image (from existing build)
+################################################################################
+FROM ${BASE_IMAGE} AS base
+
+################################################################################
+# Build stage 2: Final image with plugins
+################################################################################
+FROM base
+
+ARG WAZUH_VERSION
+ARG OPENSEARCH_DASHBOARDS_VERSION
+
+USER root
+
+# Copy plugin zip files
+COPY --from=plugin-builder --chown=1000:0 \
+    /home/node/wzd/plugins/wazuh-security-dashboards-plugin/build/security-dashboards-${OPENSEARCH_DASHBOARDS_VERSION}.0.zip \
+    /tmp/security-plugin.zip
+
+COPY --from=plugin-builder --chown=1000:0 \
+    /home/node/wzd/plugins/wazuh/build/wazuh-${OPENSEARCH_DASHBOARDS_VERSION}.zip \
+    /tmp/wazuh-plugin.zip
+
+COPY --from=plugin-builder --chown=1000:0 \
+    /home/node/wzd/plugins/wazuh-core/build/wazuhCore-${OPENSEARCH_DASHBOARDS_VERSION}.zip \
+    /tmp/wazuh-core-plugin.zip
+
+COPY --from=plugin-builder --chown=1000:0 \
+    /home/node/wzd/plugins/wazuh-check-updates/build/wazuhCheckUpdates-${OPENSEARCH_DASHBOARDS_VERSION}.zip \
+    /tmp/wazuh-check-updates-plugin.zip
+
+# Copy custom plugin using wildcard to avoid version guessing
+COPY --from=plugin-builder --chown=1000:0 \
+    /home/node/wzd/plugins/iot-security/build/iotSecurity-*.zip \
+    /tmp/custom-plugin/
+
+# Install plugins by extracting them directly (faster than using plugin CLI)
+RUN yum install -y unzip && \
+    cd /usr/share/opensearch-dashboards/plugins && \
+    # Unzip all plugins including security and custom
+    unzip -q /tmp/security-plugin.zip && \
+    unzip -q /tmp/wazuh-plugin.zip && \
+    unzip -q /tmp/wazuh-core-plugin.zip && \
+    unzip -q /tmp/wazuh-check-updates-plugin.zip && \
+    unzip -q /tmp/custom-plugin/*.zip && \
+    # Move all plugins out of the 'opensearch-dashboards' subdirectory if it exists
+    if [ -d opensearch-dashboards ]; then \
+        for dir in opensearch-dashboards/*; do \
+            target=$(basename "$dir"); \
+            rm -rf "$target"; \
+            mv "$dir" .; \
+        done; \
+        rm -rf opensearch-dashboards; \
+    fi && \
+    # Clean up
+    rm -rf /tmp/*.zip /tmp/custom-plugin/ && \
+    yum clean all && \
+    chown -R 1000:0 /usr/share/opensearch-dashboards/plugins
+
+# Create custom assets directory
+RUN mkdir -p /usr/share/opensearch-dashboards/plugins/wazuh/public/assets/custom && \
+    chown -R 1000:0 /usr/share/opensearch-dashboards/plugins/wazuh/public/assets/custom
+
+USER opensearch-dashboards

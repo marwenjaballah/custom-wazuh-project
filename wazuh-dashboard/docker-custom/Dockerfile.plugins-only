@@ -1,0 +1,52 @@
+################################################################################
+# Build stage: Build Wazuh plugins only
+################################################################################
+FROM node:18.19.0 AS plugin-builder
+
+ARG WAZUH_VERSION=4.10.3
+ARG OPENSEARCH_DASHBOARDS_VERSION=2.16.0
+
+# Install build dependencies
+USER root
+RUN apt-get update && apt-get install -y git zip unzip curl brotli jq && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+USER node
+WORKDIR /home/node
+
+# Clone and build Wazuh Security Dashboards Plugin
+RUN git clone --depth 1 --branch ${WAZUH_VERSION} \
+    https://github.com/wazuh/wazuh-security-dashboards-plugin.git \
+    /home/node/wazuh-security-dashboards-plugin
+
+WORKDIR /home/node/wazuh-security-dashboards-plugin
+RUN yarn && yarn build
+
+# Clone Wazuh Dashboard Plugins repository
+WORKDIR /home/node
+RUN git clone --depth 1 --branch ${WAZUH_VERSION} \
+    https://github.com/wazuh/wazuh-dashboard-plugins.git \
+    /home/node/wazuh-dashboard-plugins
+
+# Extract plugin directories
+WORKDIR /home/node/wazuh-dashboard-plugins/plugins
+RUN mv main wazuh && mv wazuh-core wazuh-core && mv wazuh-check-updates wazuh-check-updates
+
+# Build wazuh plugin
+WORKDIR /home/node/wazuh-dashboard-plugins/plugins/wazuh
+RUN yarn && yarn build
+
+# Build wazuh-core plugin
+WORKDIR /home/node/wazuh-dashboard-plugins/plugins/wazuh-core
+RUN yarn && yarn build
+
+# Build wazuh-check-updates plugin
+WORKDIR /home/node/wazuh-dashboard-plugins/plugins/wazuh-check-updates
+RUN yarn && yarn build
+
+# Output stage - just copy the built plugins
+FROM scratch AS export
+COPY --from=plugin-builder /home/node/wazuh-security-dashboards-plugin/build/security-dashboards-${OPENSEARCH_DASHBOARDS_VERSION}.0.zip /security-plugin.zip
+COPY --from=plugin-builder /home/node/wazuh-dashboard-plugins/plugins/wazuh/build/wazuh-${OPENSEARCH_DASHBOARDS_VERSION}.zip /wazuh-plugin.zip
+COPY --from=plugin-builder /home/node/wazuh-dashboard-plugins/plugins/wazuh-core/build/wazuhCore-${OPENSEARCH_DASHBOARDS_VERSION}.zip /wazuh-core-plugin.zip
+COPY --from=plugin-builder /home/node/wazuh-dashboard-plugins/plugins/wazuh-check-updates/build/wazuhCheckUpdates-${OPENSEARCH_DASHBOARDS_VERSION}.zip /wazuh-check-updates-plugin.zip
