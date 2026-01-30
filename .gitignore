@@ -60,3 +60,6 @@ build/
 /iot-security-backend/node_modules/
 /iot-security-backend/dist/
 /iot-security-backend/.env
+
+# Custom Docker Build Config
+/docker_config_bypass/
