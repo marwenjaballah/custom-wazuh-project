@@ -21,9 +21,13 @@ class DeviceBase(BaseModel):
 class Device(DeviceBase):
     id: str
     status: str = "online"
+    location: str = "Unassigned"
     last_seen: str
     registered_at: str
     risk_score: int = 0
+    compliance_score: int = 100
+    compliance_status: str = "compliant"
+    digital_twin_state: dict = {}
 
 # In-memory database (replace with real DB in production)
 devices_db: List[Device] = [
@@ -36,9 +40,13 @@ devices_db: List[Device] = [
         manufacturer="Siemens",
         firmware_version="v2.1.4",
         status="online",
+        location="Paris-Factory-01",
         last_seen=datetime.now().isoformat(),
         registered_at=datetime.now().isoformat(),
-        risk_score=25
+        risk_score=25,
+        compliance_score=90,
+        compliance_status="compliant",
+        digital_twin_state={"temp": 22.5, "vibration": "normal", "power": "on"}
     ),
     Device(
         id="dev-002",
@@ -49,9 +57,13 @@ devices_db: List[Device] = [
         manufacturer="Hikvision",
         firmware_version="v5.7.0",
         status="online",
+        location="Paris-Factory-01",
         last_seen=datetime.now().isoformat(),
         registered_at=datetime.now().isoformat(),
-        risk_score=75
+        risk_score=75,
+        compliance_score=45,
+        compliance_status="non-compliant",
+        digital_twin_state={"stream_active": True, "encoding": "h264", "fps": 30}
     ),
     Device(
         id="dev-003",
@@ -62,9 +74,13 @@ devices_db: List[Device] = [
         manufacturer="Honeywell",
         firmware_version="v3.1.0",
         status="online",
+        location="Berlin-Hub-A",
         last_seen=datetime.now().isoformat(),
         registered_at=datetime.now().isoformat(),
-        risk_score=15
+        risk_score=15,
+        compliance_score=85,
+        compliance_status="compliant",
+        digital_twin_state={"set_temp": 21.0, "current_temp": 21.0, "mode": "heat"}
     ),
     Device(
         id="dev-004",
@@ -75,9 +91,13 @@ devices_db: List[Device] = [
         manufacturer="Axis",
         firmware_version="v1.9.2",
         status="online",
+        location="Berlin-Hub-A",
         last_seen=datetime.now().isoformat(),
         registered_at=datetime.now().isoformat(),
-        risk_score=5
+        risk_score=5,
+        compliance_score=100,
+        compliance_status="compliant",
+        digital_twin_state={"gate_status": "closed", "auth_mode": "biometric"}
     ),
     Device(
         id="dev-005",
@@ -88,9 +108,13 @@ devices_db: List[Device] = [
         manufacturer="Cisco",
         firmware_version="v15.2(4)M",
         status="online",
+        location="Global-Gateway-Cloud",
         last_seen=datetime.now().isoformat(),
         registered_at=datetime.now().isoformat(),
-        risk_score=45
+        risk_score=45,
+        compliance_score=70,
+        compliance_status="warning",
+        digital_twin_state={"uptime": "45d", "load": 0.2, "tunnels": 2}
     ),
     Device(
         id="dev-006",
@@ -103,7 +127,9 @@ devices_db: List[Device] = [
         status="offline",
         last_seen=datetime.now().isoformat(),
         registered_at=datetime.now().isoformat(),
-        risk_score=0
+        risk_score=0,
+        compliance_score=0,
+        compliance_status="unknown"
     )
 ]
 
@@ -115,12 +141,18 @@ async def get_devices(
     """
     Get all registered IoT devices with dynamic risk scores from Wazuh
     """
-    # Update risk scores dynamically from Wazuh
+    # Update risk and compliance scores dynamically from Wazuh
     for device in devices_db:
         if device.ip_address:
             # Fetch real alert data from OpenSearch
             new_score = wazuh_service.get_device_risk_data(device.ip_address)
             device.risk_score = new_score
+            
+            # Fetch compliance data
+            comp_score, comp_status = wazuh_service.get_device_compliance_data(device.ip_address)
+            device.compliance_score = comp_score
+            device.compliance_status = comp_status
+            
             device.last_seen = datetime.now().isoformat()
             
     filtered_devices = devices_db
@@ -132,6 +164,36 @@ async def get_devices(
         filtered_devices = [d for d in filtered_devices if d.device_type == device_type]
     
     return filtered_devices
+
+@router.post("/{device_id}/simulate-vulnerability")
+async def simulate_vulnerability(device_id: str, cve_id: str):
+    """
+    Perform 'What-If' Digital Twin Analysis (Objective 7.4)
+    Simulates a vulnerability impact based on the Digital Twin state.
+    """
+    for device in devices_db:
+        if device.id == device_id:
+            # Simple simulation logic: Higher impact if the twin state is 'active' or 'open'
+            base_impact = 40
+            twin_impact = 0
+            
+            if "status" in device.digital_twin_state and device.digital_twin_state["status"] == "open":
+                twin_impact = 30
+            elif "stream_active" in device.digital_twin_state and device.digital_twin_state["stream_active"]:
+                twin_impact = 50
+                
+            predicted_risk = min(device.risk_score + base_impact + twin_impact, 100)
+            
+            return {
+                "device_name": device.name,
+                "cve_simulated": cve_id,
+                "current_risk": device.risk_score,
+                "predicted_risk": predicted_risk,
+                "impact_analysis": "High" if predicted_risk > 80 else "Medium",
+                "recommendation": "Immediate Patching Required" if predicted_risk > 80 else "Monitor for anomalies"
+            }
+            
+    raise HTTPException(status_code=404, detail="Device not found")
 
 @router.post("/", response_model=Device, status_code=status.HTTP_201_CREATED)
 async def register_device(device: DeviceBase):

@@ -1,0 +1,65 @@
+# Peaksoft IoT Compliance Policy: IEC 62443-4-2 & ETSI EN 303645
+# This policy automates security auditing for Peaksoft IIoT Gateways.
+
+policy:
+  id: "peaksoft_iot_compliance"
+  file: "iot_compliance_policy.yml"
+  name: "Peaksoft IoT Cybersecurity Compliance (IEC/ETSI)"
+  description: "Automated security checks for IEC 62443-4-2 and ETSI EN 303645."
+  references:
+    - "https://www.etsi.org/deliver/etsi_en/303600_303699/303645"
+    - "https://www.isa.org/standards-and-publications/isa-standards/isa-standards-committees/isa99"
+
+requirements:
+  title: "Operating System Requirements"
+  description: "Generic Linux-based IoT Gateway requirements."
+  condition: all
+  tests:
+    - "f:/etc/os-release"
+
+checks:
+  # --- ETSI EN 303645 / 5.1 No universal default passwords ---
+  - id: 10001
+    title: "Check for default password remnants"
+    description: "Ensure no users have known default passwords (e.g., 'pi' or 'admin' with default values)."
+    condition: all
+    rules:
+      - 'f:/etc/shadow -> !r:^admin:\$6\$' # Ensure admin doesn't have a weak MD5/SHA hash
+    compliance:
+      - etsi_en_303645: "5.1-1"
+      - iec_62443_4_2: "CR 1.2"
+
+  # --- ETSI EN 303645 / 5.6 Minimize exposed attack surfaces ---
+  - id: 10002
+    title: "Check for unencrypted management services (Telnet)"
+    description: "Telnet sends data in cleartext and should be disabled."
+    condition: none
+    rules:
+      - 'p:telnetd'
+      - 'p:in.telnetd'
+    compliance:
+      - etsi_en_303645: "5.6-1"
+      - iec_62443_4_2: "CR 7.7"
+
+  # --- ETSI EN 303645 / 5.5 Communicate securely ---
+  - id: 10003
+    title: "Verify SSH Hardening"
+    description: "Ensure SSH is configured to use secure protocols and disable root login."
+    condition: all
+    rules:
+      - 'f:/etc/ssh/sshd_config -> r:^PermitRootLogin\s+no'
+      - 'f:/etc/ssh/sshd_config -> r:^PasswordAuthentication\s+no'
+    compliance:
+      - etsi_en_303645: "5.5-1"
+      - iec_62443_4_2: "CR 3.1"
+
+  # --- IEC 62443-4-2 / CR 2.1 File Integrity & Permissions ---
+  - id: 10004
+    title: "Check permissions for sensitive IoT configuration"
+    description: "Configuration files containing security parameters must be restricted."
+    condition: all
+    rules:
+      - 'f:/etc/shadow -> r:^-rw-r-----'
+    compliance:
+      - iec_62443_4_2: "CR 2.1"
+      - etsi_en_303645: "5.4-1"

@@ -43,6 +43,9 @@ services:
       - ./config/wazuh_indexer_ssl_certs/wazuh.master.pem:/etc/ssl/filebeat.pem
       - ./config/wazuh_indexer_ssl_certs/wazuh.master-key.pem:/etc/ssl/filebeat.key
       - ./config/wazuh_cluster/wazuh_manager.conf:/wazuh-config-mount/etc/ossec.conf
+      - ./config/wazuh_cluster/decoders/iot_decoders.xml:/var/ossec/etc/decoders/iot_decoders.xml
+      - ./config/wazuh_cluster/rules/iot_rules.xml:/var/ossec/etc/rules/iot_rules.xml
+      - ./config/wazuh_cluster/sca/iot_compliance_policy.yml:/var/ossec/etc/sca/iot_compliance_policy.yml
 
   wazuh.worker:
     image: wazuh/wazuh-manager:4.10.3
@@ -79,6 +82,9 @@ services:
       - ./config/wazuh_indexer_ssl_certs/wazuh.worker.pem:/etc/ssl/filebeat.pem
       - ./config/wazuh_indexer_ssl_certs/wazuh.worker-key.pem:/etc/ssl/filebeat.key
       - ./config/wazuh_cluster/wazuh_worker.conf:/wazuh-config-mount/etc/ossec.conf
+      - ./config/wazuh_cluster/decoders/iot_decoders.xml:/var/ossec/etc/decoders/iot_decoders.xml
+      - ./config/wazuh_cluster/rules/iot_rules.xml:/var/ossec/etc/rules/iot_rules.xml
+      - ./config/wazuh_cluster/sca/iot_compliance_policy.yml:/var/ossec/etc/sca/iot_compliance_policy.yml
 
   wazuh1.indexer:
     image: wazuh/wazuh-indexer:4.10.3

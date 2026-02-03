@@ -4,10 +4,10 @@ from datetime import datetime, timedelta
 
 class WazuhService:
     def __init__(self):
-        self.host = os.getenv("OPENSEARCH_URL", "https://wazuh1.indexer:9200").replace("https://", "").replace("http://", "").split(":")[0]
+        self.host = os.getenv("OPENSEARCH_URL").replace("https://", "").replace("http://", "").split(":")[0]
         self.port = 9200
-        self.user = os.getenv("OPENSEARCH_USERNAME", "admin")
-        self.password = os.getenv("OPENSEARCH_PASSWORD", "SecretPassword")
+        self.user = os.getenv("OPENSEARCH_USERNAME")
+        self.password = os.getenv("OPENSEARCH_PASSWORD")
         
         # Initialize OpenSearch client
         self.client = OpenSearch(
@@ -70,3 +70,52 @@ class WazuhService:
         except Exception as e:
             print(f"Error fetching risk data: {e}")
             return 25  # Default risk if error
+
+
+    def get_device_compliance_data(self, ip_address):
+        """
+        Fetch the latest SCA (Security Configuration Assessment) results for an IP
+        Returns (score, status)
+        """
+        if not ip_address:
+            return 100, "compliant"
+            
+        try:
+            # In a real environment, we'd query the 'wazuh-monitoring-*' index for SCA summaries
+            # For this prototype/demo, we'll correlate compliance with high-level alerts
+            # If there are active industrial attacks, compliance drops
+            query = {
+                "size": 1,
+                "query": {
+                    "bool": {
+                        "must": [
+                            {"match": {"data.srcip": ip_address}},
+                            {"match": {"rule.groups": "iot"}}
+                        ]
+                    }
+                },
+                "sort": [{"timestamp": {"order": "desc"}}]
+            }
+            
+            response = self.client.search(
+                body=query,
+                index="wazuh-alerts-*"
+            )
+            
+            hits = response['hits']['hits']
+            if not hits:
+                return 100, "compliant"
+                
+            # If the last IoT event was level 14+, compliance is critically low
+            last_alert_level = hits[0]['_source']['rule']['level']
+            
+            if last_alert_level >= 14:
+                return 20, "non-compliant"
+            elif last_alert_level >= 10:
+                return 60, "warning"
+            
+            return 95, "compliant"
+            
+        except Exception as e:
+            print(f"Error fetching compliance data: {e}")
+            return 0, "unknown"

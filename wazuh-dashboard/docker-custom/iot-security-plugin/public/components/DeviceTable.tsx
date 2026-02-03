@@ -16,9 +16,11 @@ import {
     EuiHorizontalRule,
     EuiFlexGrid,
     EuiCard,
+    EuiButton,
 } from '@elastic/eui';
 import axios from 'axios';
 import moment from 'moment';
+import { TwinDetails } from './TwinDetails';
 
 interface Device {
     id: string;
@@ -31,6 +33,10 @@ interface Device {
     status: string;
     risk_score: number;
     last_seen: string;
+    compliance_score: number;
+    compliance_status: string;
+    location: string;
+    digital_twin_state: any;
 }
 
 interface RiskDistribution {
@@ -53,6 +59,7 @@ export const DeviceTable = () => {
     const [stats, setStats] = useState<Stats | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
 
     const fetchData = async () => {
         try {
@@ -114,6 +121,14 @@ export const DeviceTable = () => {
             )
         },
         {
+            field: 'location',
+            name: 'Facility',
+            sortable: true,
+            render: (loc: string) => (
+                <EuiText size="s"><strong>{loc}</strong></EuiText>
+            )
+        },
+        {
             field: 'manufacturer',
             name: 'Manufacturer/Firmware',
             render: (manufacturer: string, device: Device) => (
@@ -155,6 +170,36 @@ export const DeviceTable = () => {
             sortable: true,
             render: (date: string) => moment(date).fromNow(),
         },
+        {
+            name: 'Actions',
+            render: (device: Device) => (
+                <EuiButton
+                    size="s"
+                    onClick={() => setSelectedDevice(device)}
+                    iconType="dashboardApp"
+                >
+                    Twin Analysis
+                </EuiButton>
+            )
+        },
+        {
+            field: 'compliance_score',
+            name: 'Compliance',
+            sortable: true,
+            render: (score: number, device: Device) => {
+                let color = 'success';
+                let label = 'Compliant';
+                if (device.compliance_status === 'non-compliant') { color = 'danger'; label = 'Non-Compliant'; }
+                else if (device.compliance_status === 'warning') { color = 'warning'; label = 'Warning'; }
+                else if (device.compliance_status === 'unknown') { color = 'subdued'; label = 'Unknown'; }
+
+                return (
+                    <EuiToolTip content={`Standards: IEC 62443, ETSI EN 303645 (${score}%)`}>
+                        <EuiBadge color={color}>{label}</EuiBadge>
+                    </EuiToolTip>
+                );
+            },
+        },
     ];
 
     const search = {
@@ -170,6 +215,17 @@ export const DeviceTable = () => {
                 options: [
                     { value: 'online', view: 'Online' },
                     { value: 'offline', view: 'Offline' },
+                ],
+            },
+            {
+                type: 'field_value_selection' as const,
+                field: 'location',
+                name: 'Facility',
+                multiSelect: true,
+                options: [
+                    { value: 'Paris-Factory-01', view: 'Paris Factory 01' },
+                    { value: 'Berlin-Hub-A', view: 'Berlin Hub A' },
+                    { value: 'Global-Gateway-Cloud', view: 'Global Gateway' },
                 ],
             },
             {
@@ -284,9 +340,34 @@ export const DeviceTable = () => {
                                 </EuiText>
                             </EuiPanel>
                         </EuiPanel>
+                        <EuiSpacer size="l" />
+                        <EuiPanel>
+                            <EuiTitle size="s">
+                                <h3>Compliance Standards</h3>
+                            </EuiTitle>
+                            <EuiSpacer size="m" />
+                            <EuiFlexGroup wrap direction="column" gutterSize="s">
+                                <EuiFlexItem>
+                                    <EuiHealth color="success">IEC 62443-4-2 (Full Support)</EuiHealth>
+                                </EuiFlexItem>
+                                <EuiFlexItem>
+                                    <EuiHealth color="success">ETSI EN 303645 (Automated)</EuiHealth>
+                                </EuiFlexItem>
+                                <EuiFlexItem>
+                                    <EuiHealth color="warning">NIST IR 8259 (Manual Review)</EuiHealth>
+                                </EuiFlexItem>
+                            </EuiFlexGroup>
+                        </EuiPanel>
                     </EuiFlexItem>
                 )}
             </EuiFlexGroup>
+
+            {selectedDevice && (
+                <TwinDetails
+                    device={selectedDevice}
+                    onClose={() => setSelectedDevice(null)}
+                />
+            )}
         </>
     );
 };

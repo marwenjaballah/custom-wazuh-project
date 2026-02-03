@@ -1,0 +1,30 @@
+<!-- Custom Decoders for IIoT Protocols (Objective 7.2) -->
+<decoder name="iot-mqtt">
+  <prematch>^MQTT_PUB</prematch>
+</decoder>
+
+<decoder name="iot-mqtt-details">
+  <parent>iot-mqtt</parent>
+  <regex offset="after_parent">^ TOPIC:(\S+) PAYLOAD:(\S+) CLIENT:(\S+)</regex>
+  <order>iot_topic, iot_payload, iot_client</order>
+</decoder>
+
+<decoder name="iot-modbus">
+  <prematch>^MODBUS_CMD</prematch>
+</decoder>
+
+<decoder name="iot-modbus-details">
+  <parent>iot-modbus</parent>
+  <regex offset="after_parent">^ UNIT:(\d+) FUNC:(\d+) REG:(\d+) DATA:(\S+)</regex>
+  <order>iot_unit, iot_func, iot_reg, iot_data</order>
+</decoder>
+
+<decoder name="iot-coap">
+  <prematch>^COAP_REQ</prematch>
+</decoder>
+
+<decoder name="iot-coap-details">
+  <parent>iot-coap</parent>
+  <regex offset="after_parent">^ METHOD:(\S+) URI:(\S+) PAYLOAD:(\S+)</regex>
+  <order>iot_method, iot_uri, iot_payload</order>
+</decoder>
