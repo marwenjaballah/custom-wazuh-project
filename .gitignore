@@ -64,3 +64,6 @@ build/
 # Custom Docker Build Config
 /docker_config_bypass/
 
+
+/docs
+/docker_config_bypass
